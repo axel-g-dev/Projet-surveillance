@@ -432,21 +432,16 @@ def main():
         
         st.markdown("---")
         
-        # Statistiques
+        # Statistiques - Placeholders pour mise à jour en temps réel
         st.markdown("### Statistiques")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Detections", st.session_state.manager.total_detections)
-        with col2:
-            st.metric("Captures", st.session_state.manager.total_saved)
+        stats_col1, stats_col2 = st.columns(2)
+        with stats_col1:
+            detections_placeholder = st.empty()
+        with stats_col2:
+            captures_placeholder = st.empty()
         
-        if st.session_state.running and st.session_state.start_time:
-            elapsed = int(time.time() - st.session_state.start_time)
-            hours = elapsed // 3600
-            minutes = (elapsed % 3600) // 60
-            seconds = elapsed % 60
-            st.metric("Duree", f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+        duree_placeholder = st.empty()
         
         st.markdown("---")
         
@@ -463,7 +458,7 @@ def main():
             os.system(f'open "{SAVE_FOLDER}"')
     
     # ===============================================================
-    # ZONE PRINCIPALE - VIDEO FULL WIDTH
+    # ZONE PRINCIPALE - VIDEO OPTIMISEE POUR 1920x1080
     # ===============================================================
     
     # Indicateur de statut minimaliste
@@ -472,7 +467,7 @@ def main():
     else:
         st.markdown('<span class="status-indicator status-inactive"></span> Inactif', unsafe_allow_html=True)
     
-    # Zone d'affichage vidéo (maximale)
+    # Zone d'affichage vidéo avec taille optimisée
     frame_placeholder = st.empty()
     
     # Boucle de traitement vidéo
@@ -487,8 +482,32 @@ def main():
                 st.session_state.running = False
                 break
             
-            # Affichage plein écran de la frame
-            frame_placeholder.image(display, channels="BGR", use_container_width=True)
+            # Redimensionnement de la frame pour s'adapter à l'écran 1920x1080
+            # Taille optimale: largeur max 1200px, hauteur max 675px (ratio 16:9)
+            height, width = display.shape[:2]
+            max_width = 1200
+            max_height = 675
+            
+            # Calcul du ratio de redimensionnement
+            ratio = min(max_width / width, max_height / height)
+            new_width = int(width * ratio)
+            new_height = int(height * ratio)
+            
+            resized_display = cv2.resize(display, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
+            
+            # Affichage de la frame redimensionnée
+            frame_placeholder.image(resized_display, channels="BGR", use_container_width=False)
+            
+            # Mise à jour des statistiques en temps réel
+            detections_placeholder.metric("Detections", st.session_state.manager.total_detections)
+            captures_placeholder.metric("Captures", st.session_state.manager.total_saved)
+            
+            if st.session_state.start_time:
+                elapsed = int(time.time() - st.session_state.start_time)
+                hours = elapsed // 3600
+                minutes = (elapsed % 3600) // 60
+                seconds = elapsed % 60
+                duree_placeholder.metric("Duree", f"{hours:02d}:{minutes:02d}:{seconds:02d}")
             
             # Pause optimisée
             time.sleep(0.03)
@@ -496,6 +515,11 @@ def main():
     else:
         # Message d'accueil minimaliste
         frame_placeholder.info("Cliquez sur Demarrer pour lancer la surveillance")
+        
+        # Affichage des stats même quand arrêté
+        detections_placeholder.metric("Detections", st.session_state.manager.total_detections)
+        captures_placeholder.metric("Captures", st.session_state.manager.total_saved)
+        duree_placeholder.metric("Duree", "00:00:00")
 
 
 # ===============================================================
