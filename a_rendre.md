@@ -1,0 +1,1 @@
+Diagramme de cas d'utilisation et diagramme bloc, fiche recette a part et dans la doc générale et cas d'utilisation , tableau excel, notice d'utilisation en Markdown, rapport : rajouter deux diagrammes uml
