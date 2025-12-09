@@ -9,7 +9,7 @@ import time
 # ===============================================================
 DEBUG = True
 DEBUG_MOTION = False
-SAVE_FOLDER = "/Users/axel/Desktop/surveillance_camera/enregistrement"
+SAVE_FOLDER = "/Volumes/recordings"
 THRESHOLD_VALUE = 30
 MIN_AREA = 1000
 BLUR_KERNEL = (11, 11)

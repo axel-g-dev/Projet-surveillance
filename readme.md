@@ -89,7 +89,7 @@ Un mécanisme de délai (Timer) est implémenté pour éviter la saturation du s
 Ouvrir un terminal et exécuter la commande suivante :
 
 ```bash
-python /Users/axel/Desktop/surveillance_camera/code.py
+streamlit run code.py 
 ```
 
 ## 7. Rappel de la mise en place d'environnement virtuel
