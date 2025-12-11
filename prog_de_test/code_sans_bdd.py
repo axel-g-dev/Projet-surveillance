@@ -3,8 +3,6 @@ import cv2
 import numpy as np
 import os
 import time
-import mysql.connector
-from datetime import datetime
 
 # ===============================================================
 # CONFIGURATION GLOBALE
@@ -17,15 +15,6 @@ MIN_AREA = 1000
 BLUR_KERNEL = (11, 11)
 CAM_INDEX = 1
 MIN_TIME_BETWEEN_PHOTOS = 5
-
-# Configuration base de données
-DB_CONFIG = {
-    'host': '172.40.1.27',
-    'port': 3306,
-    'user': 'presence',
-    'password': '*9RSSFr5bD0WO64qurDY',
-    'database': 'presence'
-}
 
 # ===============================================================
 # CONFIGURATION DE LA PAGE
@@ -177,85 +166,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ===============================================================
-# CLASSE DE GESTION BASE DE DONNÉES
-# ===============================================================
-class DatabaseManager:
-    """
-    Gère la connexion et l'insertion des données dans MySQL.
-    """
-    
-    def __init__(self, config):
-        self.config = config
-        self.connection = None
-        if DEBUG:
-            print(f"[DB] DatabaseManager créé")
-    
-    def connect(self):
-        """Établit la connexion à la base de données."""
-        try:
-            self.connection = mysql.connector.connect(**self.config)
-            if DEBUG:
-                print(f"[DB] Connexion établie à {self.config['host']}")
-            return True
-        except mysql.connector.Error as e:
-            if DEBUG:
-                print(f"[DB] ERREUR de connexion: {e}")
-            return False
-    
-    def disconnect(self):
-        """Ferme la connexion à la base de données."""
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-            if DEBUG:
-                print("[DB] Connexion fermée")
-    
-    def insert_photo_record(self, filepath, filename, photo_id, capture_datetime):
-        """
-        Insère un enregistrement de photo dans la base de données.
-        
-        Args:
-            filepath: Chemin complet de la photo (ex: /Volumes/recordings/mouvement_20241211-143025.jpg)
-            filename: Nom du fichier (ex: mouvement_20241211-143025.jpg)
-            photo_id: Identifiant unique de la photo
-            capture_datetime: datetime de la prise de photo
-        
-        Returns:
-            bool: True si l'insertion a réussi, False sinon
-        """
-        if not self.connection or not self.connection.is_connected():
-            if not self.connect():
-                return False
-        
-        try:
-            cursor = self.connection.cursor()
-            
-            # Requête d'insertion - adaptez le nom de la table et les colonnes selon votre schéma
-            query = """
-            INSERT INTO photos (filepath, filename, photo_id, capture_date, capture_time)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-            
-            # Extraction de la date et de l'heure
-            date_str = capture_datetime.strftime('%Y-%m-%d')
-            time_str = capture_datetime.strftime('%H:%M:%S')
-            
-            values = (filepath, filename, photo_id, date_str, time_str)
-            
-            cursor.execute(query, values)
-            self.connection.commit()
-            
-            if DEBUG:
-                print(f"[DB] Enregistrement inséré: {filename}")
-            
-            cursor.close()
-            return True
-            
-        except mysql.connector.Error as e:
-            if DEBUG:
-                print(f"[DB] ERREUR d'insertion: {e}")
-            return False
-
-# ===============================================================
 # CLASSE PRINCIPALE : GESTIONNAIRE DE SURVEILLANCE
 # ===============================================================
 class SurveillanceManager:
@@ -273,10 +183,6 @@ class SurveillanceManager:
         self.last_capture_time = 0
         self.total_detections = 0
         self.total_saved = 0
-        self.photo_counter = 0  # Compteur pour générer des IDs uniques
-        
-        # Initialisation du gestionnaire de base de données
-        self.db_manager = DatabaseManager(DB_CONFIG)
         
         self._ensure_save_folder()
         
@@ -340,9 +246,6 @@ class SurveillanceManager:
             self.cap = None
             if DEBUG:
                 print("[CAMERA] Ressources liberees")
-        
-        # Fermeture de la connexion DB
-        self.db_manager.disconnect()
     
     def preprocess_frame(self, frame):
         """
@@ -383,7 +286,6 @@ class SurveillanceManager:
         """
         Sauvegarde une image si le délai minimum est respecté.
         Evite de sauvegarder trop d'images lors d'un mouvement continu.
-        NOUVEAU: Enregistre aussi les informations dans la base de données.
         """
         now = time.time()
         
@@ -393,38 +295,14 @@ class SurveillanceManager:
             return False
         
         self.last_capture_time = now
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        filename = os.path.join(self.save_folder, f"mouvement_{timestamp}.jpg")
         
-        # Création du datetime pour la capture
-        capture_datetime = datetime.now()
-        timestamp = capture_datetime.strftime("%Y%m%d-%H%M%S")
-        
-        # Génération de l'ID unique
-        self.photo_counter += 1
-        photo_id = f"PHOTO_{timestamp}_{self.photo_counter:04d}"
-        
-        # Nom du fichier
-        filename = f"mouvement_{timestamp}.jpg"
-        filepath = os.path.join(self.save_folder, filename)
-        
-        # Sauvegarde de l'image
-        cv2.imwrite(filepath, frame)
+        cv2.imwrite(filename, frame)
         self.total_saved += 1
         
         if DEBUG:
-            print(f"[SAVE] Image sauvegardee: {filepath}")
-        
-        # Insertion dans la base de données
-        db_success = self.db_manager.insert_photo_record(
-            filepath=filepath,
-            filename=filename,
-            photo_id=photo_id,
-            capture_datetime=capture_datetime
-        )
-        
-        if db_success and DEBUG:
-            print(f"[SAVE] Enregistrement DB réussi pour {filename}")
-        elif not db_success and DEBUG:
-            print(f"[SAVE] ATTENTION: Échec enregistrement DB pour {filename}")
+            print(f"[SAVE] Image sauvegardee: {filename}")
         
         return True
     
@@ -497,9 +375,9 @@ class SurveillanceManager:
         """Réinitialise les statistiques."""
         self.total_detections = 0
         self.total_saved = 0
-        self.photo_counter = 0
         if DEBUG:
             print("[STATS] Statistiques reinitialisees")
+
 
 # ===============================================================
 # INTERFACE STREAMLIT MINIMALISTE
@@ -642,6 +520,7 @@ def main():
         detections_placeholder.metric("Detections", st.session_state.manager.total_detections)
         captures_placeholder.metric("Captures", st.session_state.manager.total_saved)
         duree_placeholder.metric("Duree", "00:00:00")
+
 
 # ===============================================================
 # POINT D'ENTREE
