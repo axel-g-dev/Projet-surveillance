@@ -1,29 +1,3 @@
-# Il me reste a faire en sorte que les photos soient envoyées à la base de données. Via sqli sqlite 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # PROJET : SURVEILLANCE ET CAPTURE PHOTO AUTOMATISÉE
 
 ## SOMMAIRE
