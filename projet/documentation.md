@@ -24,7 +24,7 @@ Système de vidéosurveillance temps réel pour PC portable intégré dans une a
 - Analyse du flux vidéo par différence de frames
 - Détection de mouvement par seuillage et contours
 - Capture automatique avec horodatage
-- Stockage sur dossier partagé SMB/NFS
+- Stockage sur dossier partagé SMB
 - Enregistrement des métadonnées en base MySQL distante
 - Interface de monitoring Streamlit
 
