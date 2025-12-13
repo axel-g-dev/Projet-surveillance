@@ -11,6 +11,59 @@
 * **Enseignant référent :** M. Boudjelaba
 
 ---
+## Sommaire
+
+- [Page de garde](#page-de-garde)
+
+- [1. Notice d'utilisation](#1-notice-dutilisation)
+  - [1.1. Objectif du produit ou de l'application](#11-objectif-du-produit-ou-de-lapplication)
+  - [1.2. Prérequis](#12-prérequis)
+  - [1.3. Procédure d'utilisation](#13-procédure-dutilisation)
+    - [Étape 1 : Montage du dossier partagé](#étape-1--montage-du-dossier-partagé)
+    - [Étape 2 : Préparation de l'environnement](#étape-2--préparation-de-lenvironnement)
+    - [Étape 3 : Test de connexion base de données](#étape-3--test-de-connexion-base-de-données)
+    - [Étape 4 : Démarrage du système](#étape-4--démarrage-du-système)
+    - [Étape 5 : Utilisation de l'interface](#étape-5--utilisation-de-linterface)
+    - [Étape 6 : Arrêt du système](#étape-6--arrêt-du-système)
+  - [1.4. Conseils et remarques](#14-conseils-et-remarques)
+
+- [2. Fiche(s) de recette](#2-fiches-de-recette)
+  - [Fiche recette n°1 : Test de détection de mouvement](#fiche-recette-n1--test-de-détection-de-mouvement)
+  - [Fiche recette n°2 : Test du délai anti-rafale](#fiche-recette-n2--test-du-délai-anti-rafale)
+  - [Fiche recette n°3 : Test de connexion base de données](#fiche-recette-n3--test-de-connexion-base-de-données)
+  - [Fiche recette n°4 : Test de sensibilité des paramètres](#fiche-recette-n4--test-de-sensibilité-des-paramètres)
+
+- [3. Rapport du projet](#3-rapport-du-projet)
+  - [3.1. Introduction](#31-introduction)
+  - [3.2. Cahier des charges / Expression du besoin](#32-cahier-des-charges--expression-du-besoin)
+  - [3.3. Analyse & Conception](#33-analyse--conception)
+    - [a) Diagramme de cas d'utilisation (SysML)](#a-diagramme-de-cas-dutilisation-sysml)
+    - [b) Diagramme de séquence (SysML)](#b-diagramme-de-séquence-sysml)
+    - [c) Diagramme de classe](#c-diagramme-de-classe)
+    - [d) Diagramme de Gantt](#d-diagramme-de-gantt)
+    - [e) Planning des séances](#e-planning-des-séances)
+    - [f) Fiche de suivi du projet](#f-fiche-de-suivi-du-projet)
+  - [3.4. Réalisation](#34-réalisation)
+    - [a) Description du travail effectué](#a-description-du-travail-effectué)
+    - [b) Schéma de câblage](#b-schéma-de-câblage)
+    - [c) Schéma réseau](#c-schéma-réseau)
+    - [d) Schéma BDD / MCD](#d-schéma-bdd--mcd)
+  - [3.5. Développement & Tests](#35-développement--tests)
+    - [a) Code développé](#a-code-développé)
+    - [b) Tests unitaires](#b-tests-unitaires)
+  - [3.6. Difficultés rencontrées](#36-difficultés-rencontrées)
+  - [3.7. Conclusion & perspectives](#37-conclusion--perspectives)
+
+- [4. Annexes](#4-annexes)
+  - [Annexe A : Structure du projet](#annexe-a--structure-du-projet)
+  - [Annexe B : Configuration système](#annexe-b--configuration-système)
+  - [Annexe C : Paramètres de détection](#annexe-c--paramètres-de-détection)
+  - [Annexe D : Format des fichiers générés](#annexe-d--format-des-fichiers-générés)
+  - [Annexe E : Lien vers le code source](#annexe-e--lien-vers-le-code-source)
+  - [Annexe F : Captures d'écran](#annexe-f--captures-décran)
+  - [Annexe G : Photos de la réalisation](#annexe-g--photos-de-la-réalisation)
+
+---
 
 # **1. Notice d'utilisation**
 
