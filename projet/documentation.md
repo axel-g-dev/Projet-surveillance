@@ -272,7 +272,7 @@ Mettre en place un système de vidéosurveillance automatisé pour détecter et 
 - Backend vidéo : AVFoundation (spécifique Mac)
 - Serveur : Raspberry Pi 5 (4 Go RAM, 32 Go stockage)
 - Base de données : MySQL sur Raspberry Pi (192.168.4.1)
-- Stockage : Dossier partagé SMB/NFS avec authentification
+- Stockage : Dossier partagé SMB avec authentification
 - Format images : JPEG avec nom horodaté
 
 **Contraintes matérielles :**
