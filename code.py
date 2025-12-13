@@ -7,20 +7,23 @@ import mysql.connector
 from datetime import datetime
 
 # ===============================================================
-# CONFIGURATION GLOBALE
+# CONFIG
 # ===============================================================
 DEBUG = True
 DEBUG_MOTION = False
+
 SAVE_FOLDER = "/Volumes/recordings"
+CAM_INDEX = 1
+
 THRESHOLD_VALUE = 30
 MIN_AREA = 1000
 BLUR_KERNEL = (11, 11)
-CAM_INDEX = 1
-MIN_TIME_BETWEEN_PHOTOS = 5
 
-# Configuration base de données
+MIN_TIME_BETWEEN_PHOTOS = 5  # secondes
+
+# DB
 DB_CONFIG = {
-    'host': '172.40.1.27',
+    'host': '192.168.4.1',
     'port': 3306,
     'user': 'presence',
     'password': '*9RSSFr5bD0WO64qurDY',
@@ -28,7 +31,7 @@ DB_CONFIG = {
 }
 
 # ===============================================================
-# CONFIGURATION DE LA PAGE
+# STREAMLIT CONFIG
 # ===============================================================
 st.set_page_config(
     page_title="Surveillance",
@@ -37,618 +40,264 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ===============================================================
-# STYLES CSS MINIMALISTES STYLE APPLE
-# ===============================================================
+# CSS STYLE
 st.markdown("""
-    <style>
-    /* Style global minimaliste */
-    .stApp {
-        background-color: #ffffff;
-    }
-    
-    /* Cache le header Streamlit par défaut */
-    header {visibility: hidden;}
-    
-    /* Video frame style Apple */
-    .stImage {
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e5e5e7;
-    }
-    
-    /* Sidebar minimaliste */
-    [data-testid="stSidebar"] {
-        background-color: #fbfbfd;
-        border-right: 1px solid #e5e5e7;
-    }
-    
-    [data-testid="stSidebar"] h2 {
-        font-weight: 600;
-        font-size: 1.3rem;
-        color: #1d1d1f;
-        margin-bottom: 1.5rem;
-    }
-    
-    [data-testid="stSidebar"] h3 {
-        font-weight: 500;
-        font-size: 0.9rem;
-        color: #6e6e73;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-    
-    /* Boutons style Apple */
-    .stButton button {
-        background-color: #0071e3;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: 500;
-        padding: 0.6rem 1.2rem;
-        font-size: 0.95rem;
-        transition: all 0.2s ease;
-    }
-    
-    .stButton button:hover {
-        background-color: #0077ed;
-        transform: scale(1.02);
-    }
-    
-    .stButton button:active {
-        transform: scale(0.98);
-    }
-    
-    /* Bouton secondaire */
-    .stButton button[kind="secondary"] {
-        background-color: transparent;
-        color: #0071e3;
-        border: 1px solid #0071e3;
-    }
-    
-    .stButton button[kind="secondary"]:hover {
-        background-color: #f5f5f7;
-    }
-    
-    /* Metrics style Apple */
-    [data-testid="stMetricValue"] {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #1d1d1f;
-    }
-    
-    [data-testid="stMetricLabel"] {
-        font-size: 0.85rem;
-        color: #6e6e73;
-        font-weight: 400;
-    }
-    
-    /* Separateurs invisibles */
-    hr {
-        border: none;
-        height: 1px;
-        background-color: #e5e5e7;
-        margin: 2rem 0;
-    }
-    
-    /* Input fields */
-    .stTextInput input {
-        border-radius: 8px;
-        border: 1px solid #d2d2d7;
-        background-color: #f5f5f7;
-        color: #1d1d1f;
-        font-size: 0.9rem;
-    }
-    
-    /* Info messages */
-    .stInfo {
-        background-color: #f5f5f7;
-        border-left: 3px solid #0071e3;
-        border-radius: 8px;
-        color: #1d1d1f;
-    }
-    
-    /* Zone principale */
-    .main .block-container {
-        padding: 2rem 3rem;
-        max-width: 100%;
-    }
-    
-    /* Status indicator */
-    .status-indicator {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 8px;
-    }
-    
-    .status-active {
-        background-color: #30d158;
-        box-shadow: 0 0 8px rgba(48, 209, 88, 0.5);
-    }
-    
-    .status-inactive {
-        background-color: #ff3b30;
-    }
-    </style>
+<style>
+header {visibility: hidden;}
+
+.stImage {
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    border: 1px solid #e5e5e7;
+}
+
+[data-testid="stSidebar"] {
+    background-color: #fbfbfd;
+    border-right: 1px solid #e5e5e7;
+}
+
+.status-indicator {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; margin-right: 8px;
+}
+.status-active { background-color: #30d158; }
+.status-inactive { background-color: #ff3b30; }
+</style>
 """, unsafe_allow_html=True)
 
 # ===============================================================
-# CLASSE DE GESTION BASE DE DONNÉES
+# DATABASE MANAGER SIMPLIFIÉ & FIABLE
 # ===============================================================
 class DatabaseManager:
-    """
-    Gère la connexion et l'insertion des données dans MySQL.
-    """
-    
-    def __init__(self, config):
-        self.config = config
-        self.connection = None
-        if DEBUG:
-            print(f"[DB] DatabaseManager créé")
-    
+    def __init__(self):
+        self.conn = None
+
     def connect(self):
-        """Établit la connexion à la base de données."""
-        try:
-            self.connection = mysql.connector.connect(**self.config)
-            if DEBUG:
-                print(f"[DB] Connexion établie à {self.config['host']}")
+        if self.conn and self.conn.is_connected():
             return True
-        except mysql.connector.Error as e:
-            if DEBUG:
-                print(f"[DB] ERREUR de connexion: {e}")
-            return False
-    
-    def disconnect(self):
-        """Ferme la connexion à la base de données."""
-        if self.connection and self.connection.is_connected():
-            self.connection.close()
-            if DEBUG:
-                print("[DB] Connexion fermée")
-    
-    def insert_photo_record(self, filepath, filename, photo_id, capture_datetime):
-        """
-        Insère un enregistrement de photo dans la base de données.
-        
-        Args:
-            filepath: Chemin complet de la photo (ex: /Volumes/recordings/mouvement_20241211-143025.jpg)
-            filename: Nom du fichier (ex: mouvement_20241211-143025.jpg)
-            photo_id: Identifiant unique de la photo
-            capture_datetime: datetime de la prise de photo
-        
-        Returns:
-            bool: True si l'insertion a réussi, False sinon
-        """
-        if not self.connection or not self.connection.is_connected():
-            if not self.connect():
-                return False
-        
         try:
-            cursor = self.connection.cursor()
-            
-            # Requête d'insertion - adaptez le nom de la table et les colonnes selon votre schéma
-            query = """
-            INSERT INTO photos (filepath, filename, photo_id, capture_date, capture_time)
-            VALUES (%s, %s, %s, %s, %s)
-            """
-            
-            # Extraction de la date et de l'heure
-            date_str = capture_datetime.strftime('%Y-%m-%d')
-            time_str = capture_datetime.strftime('%H:%M:%S')
-            
-            values = (filepath, filename, photo_id, date_str, time_str)
-            
-            cursor.execute(query, values)
-            self.connection.commit()
-            
-            if DEBUG:
-                print(f"[DB] Enregistrement inséré: {filename}")
-            
-            cursor.close()
+            self.conn = mysql.connector.connect(**DB_CONFIG)
+            if DEBUG: print("[DB] Connexion OK.")
             return True
-            
-        except mysql.connector.Error as e:
-            if DEBUG:
-                print(f"[DB] ERREUR d'insertion: {e}")
+        except Exception as e:
+            print("[DB] ERREUR:", e)
             return False
 
+    def insert(self, event_type, path):
+        if not self.connect():
+            return False
+        try:
+            cursor = self.conn.cursor()
+            query = "INSERT INTO enregistrement (type, file_path) VALUES (%s, %s)"
+            cursor.execute(query, (event_type, path))
+            self.conn.commit()
+            cursor.close()
+
+            if DEBUG: print(f"[DB] Ajout enregistrement OK → {path}")
+            return True
+
+        except Exception as e:
+            print("[DB] ERREUR INSERT :", e)
+            return False
+
+    def close(self):
+        if self.conn and self.conn.is_connected():
+            self.conn.close()
+            if DEBUG: print("[DB] Connexion fermée.")
+
 # ===============================================================
-# CLASSE PRINCIPALE : GESTIONNAIRE DE SURVEILLANCE
+# SURVEILLANCE MANAGER OPTIMISÉ
 # ===============================================================
 class SurveillanceManager:
-    """
-    Gère la caméra, la détection de mouvement et l'enregistrement.
-    Architecture modulaire pour faciliter le débogage.
-    """
-    
-    def __init__(self, cam_index=1, save_folder=SAVE_FOLDER):
-        self.cam_index = cam_index
-        self.save_folder = save_folder
+    def __init__(self):
         self.cap = None
-        self.frame1 = None
-        self.frame2 = None
-        self.last_capture_time = 0
+        self.frame_a = None
+        self.frame_b = None
+
+        self.last_capture = 0
         self.total_detections = 0
         self.total_saved = 0
-        self.photo_counter = 0  # Compteur pour générer des IDs uniques
-        
-        # Initialisation du gestionnaire de base de données
-        self.db_manager = DatabaseManager(DB_CONFIG)
-        
-        self._ensure_save_folder()
-        
-        if DEBUG:
-            print(f"[INIT] SurveillanceManager cree")
-            print(f"[INIT] Dossier: {self.save_folder}")
-    
-    def _ensure_save_folder(self):
-        """Crée le dossier de sauvegarde s'il n'existe pas."""
-        if not os.path.exists(self.save_folder):
-            os.makedirs(self.save_folder)
-            if DEBUG:
-                print(f"[FOLDER] Dossier cree: {self.save_folder}")
-        else:
-            if DEBUG:
-                print(f"[FOLDER] Dossier existant: {self.save_folder}")
-    
+
+        self.db = DatabaseManager()
+
+        if not os.path.exists(SAVE_FOLDER):
+            os.makedirs(SAVE_FOLDER)
+
     def init_camera(self):
-        """
-        Initialise la caméra et capture les deux premières frames.
-        Retourne True si succès, False sinon.
-        """
-        try:
-            if DEBUG:
-                print(f"[CAMERA] Tentative d'ouverture (index {self.cam_index})...")
-            
-            self.cap = cv2.VideoCapture(self.cam_index, cv2.CAP_AVFOUNDATION)
-            
-            if not self.cap.isOpened():
-                if DEBUG:
-                    print("[CAMERA] ERREUR: Impossible d'ouvrir la camera")
-                raise RuntimeError("Impossible d'ouvrir la camera")
-            
-            ret1, self.frame1 = self.cap.read()
-            ret2, self.frame2 = self.cap.read()
-            
-            if not ret1 or not ret2:
-                if DEBUG:
-                    print("[CAMERA] ERREUR: Impossible de lire les frames initiales")
-                raise RuntimeError("Impossible de lire les premieres images")
-            
-            if DEBUG:
-                width = self.cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-                height = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-                print(f"[CAMERA] OK - Resolution: {int(width)}x{int(height)}")
-            
-            return True
-            
-        except Exception as e:
-            if DEBUG:
-                print(f"[CAMERA] EXCEPTION: {e}")
+        if DEBUG: print("[CAM] Opening camera...")
+        self.cap = cv2.VideoCapture(CAM_INDEX)
+        if not self.cap.isOpened():
+            print("[CAM] ERREUR ouverture caméra.")
             return False
-    
-    def release_camera(self):
-        """
-        Libère les ressources de la caméra.
-        Important pour permettre à d'autres applications d'accéder à la caméra.
-        """
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
-            if DEBUG:
-                print("[CAMERA] Ressources liberees")
-        
-        # Fermeture de la connexion DB
-        self.db_manager.disconnect()
-    
-    def preprocess_frame(self, frame):
-        """
-        Convertit en niveaux de gris et applique un flou gaussien.
-        Réduit le bruit pour une meilleure détection.
-        """
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        blur = cv2.GaussianBlur(gray, BLUR_KERNEL, 0)
-        return blur
-    
-    def detect_motion(self, frame1, frame2):
-        """
-        Compare deux frames consécutives pour détecter un mouvement.
-        Algorithme: différence absolue + seuillage + dilatation + contours.
-        Retourne les contours des zones en mouvement.
-        """
-        # Calcul de la différence absolue entre les deux frames
-        diff = cv2.absdiff(frame1, frame2)
-        
-        # Seuillage binaire
-        _, thresh = cv2.threshold(diff, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
-        
-        # Dilatation pour combler les trous
-        dilated = cv2.dilate(thresh, None, iterations=2)
-        
-        # Détection des contours
-        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        # Filtrage par surface minimale
-        contours = [c for c in contours if cv2.contourArea(c) >= MIN_AREA]
-        
-        if DEBUG_MOTION and contours:
-            print(f"[MOTION] {len(contours)} zone(s) detectee(s)")
-        
-        return contours
-    
-    def save_motion_picture(self, frame):
-        """
-        Sauvegarde une image si le délai minimum est respecté.
-        Evite de sauvegarder trop d'images lors d'un mouvement continu.
-        NOUVEAU: Enregistre aussi les informations dans la base de données.
-        """
-        now = time.time()
-        
-        if now - self.last_capture_time < MIN_TIME_BETWEEN_PHOTOS:
-            if DEBUG_MOTION:
-                print(f"[SAVE] Delai non respecte ({now - self.last_capture_time:.1f}s)")
+
+        ok1, f1 = self.cap.read()
+        ok2, f2 = self.cap.read()
+
+        if not (ok1 and ok2):
+            print("[CAM] ERREUR frames")
             return False
-        
-        self.last_capture_time = now
-        
-        # Création du datetime pour la capture
-        capture_datetime = datetime.now()
-        timestamp = capture_datetime.strftime("%Y%m%d-%H%M%S")
-        
-        # Génération de l'ID unique
-        self.photo_counter += 1
-        photo_id = f"PHOTO_{timestamp}_{self.photo_counter:04d}"
-        
-        # Nom du fichier
-        filename = f"mouvement_{timestamp}.jpg"
-        filepath = os.path.join(self.save_folder, filename)
-        
-        # Sauvegarde de l'image
-        cv2.imwrite(filepath, frame)
-        self.total_saved += 1
-        
+
+        self.frame_a = f1
+        self.frame_b = f2
+
         if DEBUG:
-            print(f"[SAVE] Image sauvegardee: {filepath}")
-        
-        # Insertion dans la base de données
-        db_success = self.db_manager.insert_photo_record(
-            filepath=filepath,
-            filename=filename,
-            photo_id=photo_id,
-            capture_datetime=capture_datetime
-        )
-        
-        if db_success and DEBUG:
-            print(f"[SAVE] Enregistrement DB réussi pour {filename}")
-        elif not db_success and DEBUG:
-            print(f"[SAVE] ATTENTION: Échec enregistrement DB pour {filename}")
-        
+            print("[CAM] OK. Resolution:",
+                  self.cap.get(cv2.CAP_PROP_FRAME_WIDTH),
+                  "x",
+                  self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
         return True
-    
-    def draw_contours(self, frame, contours):
-        """
-        Dessine des rectangles autour des zones de mouvement.
-        Style minimaliste avec bordure fine.
-        """
-        for c in contours:
-            x, y, w, h = cv2.boundingRect(c)
-            # Bordure verte fine style Apple
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (48, 209, 88), 2)
-        
-        # Indicateur discret en haut à gauche si mouvement
-        if contours:
-            cv2.circle(frame, (20, 20), 8, (48, 209, 88), -1)
-        
-        return frame
-    
-    def process_frame(self):
-        """
-        Pipeline complet de traitement d'une frame:
-        1. Prétraitement (conversion + flou)
-        2. Détection de mouvement
-        3. Dessin des contours
-        4. Sauvegarde conditionnelle
-        5. Capture frame suivante
-        
-        Retourne: (frame_affichable, success, nb_contours)
-        """
-        if self.cap is None or self.frame1 is None or self.frame2 is None:
-            if DEBUG:
-                print("[PROCESS] ERREUR: Camera non initialisee")
+
+    def release(self):
+        if self.cap:
+            self.cap.release()
+        self.db.close()
+
+    def preprocess(self, f):
+        g = cv2.cvtColor(f, cv2.COLOR_BGR2GRAY)
+        return cv2.GaussianBlur(g, BLUR_KERNEL, 0)
+
+    def detect_motion(self, fa, fb):
+        diff = cv2.absdiff(fa, fb)
+        _, th = cv2.threshold(diff, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
+        dil = cv2.dilate(th, None, iterations=2)
+        cnts, _ = cv2.findContours(dil, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        return [c for c in cnts if cv2.contourArea(c) > MIN_AREA]
+
+    def save_picture(self, frame):
+        now = time.time()
+        if now - self.last_capture < MIN_TIME_BETWEEN_PHOTOS:
+            return False
+
+        self.last_capture = now
+
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        filename = f"mvt_{ts}.jpg"
+        path = os.path.join(SAVE_FOLDER, filename)
+
+        cv2.imwrite(path, frame)
+        self.total_saved += 1
+
+        # BDD
+        self.db.insert("mouvement", path)
+
+        if DEBUG: print("[SAVE] Photo:", path)
+        return True
+
+    def process(self):
+        if self.cap is None:
             return None, False, 0
-        
-        # Copie pour affichage
-        display = self.frame1.copy()
-        
-        # Prétraitement
-        f1_processed = self.preprocess_frame(self.frame1)
-        f2_processed = self.preprocess_frame(self.frame2)
-        
-        # Détection de mouvement
-        contours = self.detect_motion(f1_processed, f2_processed)
-        
+
+        fa = self.preprocess(self.frame_a)
+        fb = self.preprocess(self.frame_b)
+
+        contours = self.detect_motion(fa, fb)
+
         if contours:
             self.total_detections += 1
-        
-        # Dessin des contours
-        display = self.draw_contours(display, contours)
-        
-        # Sauvegarde si mouvement détecté
-        if contours:
-            self.save_motion_picture(self.frame1)
-        
-        # Capture de la frame suivante
-        ret, next_frame = self.cap.read()
-        if not ret:
-            if DEBUG:
-                print("[PROCESS] ERREUR: Impossible de lire la frame suivante")
+            self.save_picture(self.frame_a)
+
+        # Draw contours
+        display = self.frame_a.copy()
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            cv2.rectangle(display, (x, y), (x+w, y+h), (48, 209, 88), 2)
+
+        ok, next_frame = self.cap.read()
+        if not ok:
             return display, False, len(contours)
-        
-        # Décalage des frames pour le prochain cycle
-        self.frame1 = self.frame2
-        self.frame2 = next_frame
-        
+
+        self.frame_a = self.frame_b
+        self.frame_b = next_frame
+
         return display, True, len(contours)
-    
-    def reset_stats(self):
-        """Réinitialise les statistiques."""
-        self.total_detections = 0
-        self.total_saved = 0
-        self.photo_counter = 0
-        if DEBUG:
-            print("[STATS] Statistiques reinitialisees")
 
 # ===============================================================
-# INTERFACE STREAMLIT MINIMALISTE
+# STREAMLIT APP
 # ===============================================================
 def main():
-    """
-    Interface utilisateur minimaliste style Apple.
-    Focus sur la vidéo avec contrôles essentiels.
-    """
-    
-    # Initialisation du gestionnaire dans session_state
+
     if "manager" not in st.session_state:
-        st.session_state.manager = SurveillanceManager(CAM_INDEX, SAVE_FOLDER)
-        st.session_state.camera_initialized = False
+        st.session_state.manager = SurveillanceManager()
         st.session_state.running = False
         st.session_state.start_time = None
-        
-        if DEBUG:
-            print("[APP] Session Streamlit initialisee")
-    
-    # ===============================================================
-    # BARRE LATERALE MINIMALISTE
-    # ===============================================================
+        st.session_state.initialized = False
+
+    manager = st.session_state.manager
+
+    # SIDEBAR
     with st.sidebar:
-        st.markdown("## Surveillance")
-        
-        # Bouton principal
+        st.title("Surveillance")
+
         if not st.session_state.running:
-            if st.button("Demarrer", type="primary", use_container_width=True):
-                if not st.session_state.camera_initialized:
-                    if DEBUG:
-                        print("[APP] Tentative de demarrage...")
-                    
-                    if st.session_state.manager.init_camera():
-                        st.session_state.camera_initialized = True
-                        st.session_state.running = True
+            if st.button("Démarrer", type="primary"):
+                if not st.session_state.initialized:
+                    if manager.init_camera():
+                        st.session_state.initialized = True
                         st.session_state.start_time = time.time()
+                        st.session_state.running = True
                         st.rerun()
                     else:
-                        st.error("Erreur camera")
+                        st.error("Erreur caméra")
                 else:
                     st.session_state.running = True
-                    if st.session_state.start_time is None:
-                        st.session_state.start_time = time.time()
                     st.rerun()
         else:
-            if st.button("Arreter", use_container_width=True):
-                if DEBUG:
-                    print("[APP] Arret demande")
+            if st.button("Arrêter"):
                 st.session_state.running = False
+                manager.release()
                 st.rerun()
-        
-        st.markdown("---")
-        
-        # Statistiques - Placeholders pour mise à jour en temps réel
-        st.markdown("### Statistiques")
-        
-        stats_col1, stats_col2 = st.columns(2)
-        with stats_col1:
-            detections_placeholder = st.empty()
-        with stats_col2:
-            captures_placeholder = st.empty()
-        
-        duree_placeholder = st.empty()
-        
-        st.markdown("---")
-        
-        # Parametres
-        st.markdown("### Parametres")
-        st.text(f"Sensibilite: {THRESHOLD_VALUE}")
-        st.text(f"Surface min: {MIN_AREA} px")
-        st.text(f"Delai: {MIN_TIME_BETWEEN_PHOTOS}s")
-        
-        st.markdown("---")
-        
-        # Dossier
-        if st.button("Ouvrir dossier", use_container_width=True):
+
+        st.write("---")
+        st.subheader("Statistiques")
+
+        det = st.empty()
+        cap = st.empty()
+        timing = st.empty()
+
+        st.write("---")
+        if st.button("Ouvrir dossier"):
             os.system(f'open "{SAVE_FOLDER}"')
-    
-    # ===============================================================
-    # ZONE PRINCIPALE - VIDEO OPTIMISEE POUR 1920x1080
-    # ===============================================================
-    
-    # Indicateur de statut minimaliste
+
+    # MAIN AREA
     if st.session_state.running:
-        st.markdown('<span class="status-indicator status-active"></span> En cours', unsafe_allow_html=True)
+        st.markdown('<span class="status-indicator status-active"></span>En cours', unsafe_allow_html=True)
     else:
-        st.markdown('<span class="status-indicator status-inactive"></span> Inactif', unsafe_allow_html=True)
-    
-    # Zone d'affichage vidéo avec taille optimisée
-    frame_placeholder = st.empty()
-    
-    # Boucle de traitement vidéo
-    if st.session_state.running and st.session_state.camera_initialized:
+        st.markdown('<span class="status-indicator status-inactive"></span>Inactif', unsafe_allow_html=True)
+
+    viewer = st.empty()
+
+    # LOOP
+    if st.session_state.running:
         while st.session_state.running:
-            display, success, nb_contours = st.session_state.manager.process_frame()
-            
-            if not success or display is None:
-                if DEBUG:
-                    print("[APP] Erreur de lecture du flux")
-                st.error("Erreur flux video")
+            frame, ok, nb = manager.process()
+
+            if not ok:
+                st.error("Erreur flux vidéo")
                 st.session_state.running = False
                 break
-            
-            # Redimensionnement de la frame pour s'adapter à l'écran 1920x1080
-            # Taille optimale: largeur max 1200px, hauteur max 675px (ratio 16:9)
-            height, width = display.shape[:2]
-            max_width = 1200
-            max_height = 675
-            
-            # Calcul du ratio de redimensionnement
-            ratio = min(max_width / width, max_height / height)
-            new_width = int(width * ratio)
-            new_height = int(height * ratio)
-            
-            resized_display = cv2.resize(display, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
-            
-            # Affichage de la frame redimensionnée
-            frame_placeholder.image(resized_display, channels="BGR", use_container_width=False)
-            
-            # Mise à jour des statistiques en temps réel
-            detections_placeholder.metric("Detections", st.session_state.manager.total_detections)
-            captures_placeholder.metric("Captures", st.session_state.manager.total_saved)
-            
-            if st.session_state.start_time:
-                elapsed = int(time.time() - st.session_state.start_time)
-                hours = elapsed // 3600
-                minutes = (elapsed % 3600) // 60
-                seconds = elapsed % 60
-                duree_placeholder.metric("Duree", f"{hours:02d}:{minutes:02d}:{seconds:02d}")
-            
-            # Pause optimisée
-            time.sleep(0.03)
-    
-    else:
-        # Message d'accueil minimaliste
-        frame_placeholder.info("Cliquez sur Demarrer pour lancer la surveillance")
-        
-        # Affichage des stats même quand arrêté
-        detections_placeholder.metric("Detections", st.session_state.manager.total_detections)
-        captures_placeholder.metric("Captures", st.session_state.manager.total_saved)
-        duree_placeholder.metric("Duree", "00:00:00")
 
-# ===============================================================
-# POINT D'ENTREE
-# ===============================================================
+            # Resize (optional)
+            h, w = frame.shape[:2]
+            r = min(1200 / w, 675 / h)
+            frame_resized = cv2.resize(frame, (int(w*r), int(h*r)))
+
+            viewer.image(frame_resized, channels="BGR")
+
+            # Stats
+            det.metric("Détections", manager.total_detections)
+            cap.metric("Captures", manager.total_saved)
+
+            elapsed = int(time.time() - st.session_state.start_time)
+            h_ = elapsed // 3600
+            m_ = (elapsed % 3600) // 60
+            s_ = elapsed % 60
+            timing.metric("Durée", f"{h_:02d}:{m_:02d}:{s_:02d}")
+
+            time.sleep(0.03)
+
+    else:
+        viewer.info("Cliquez sur Démarrer pour lancer la surveillance.")
+
 if __name__ == "__main__":
-    if DEBUG:
-        print("=" * 60)
-        print("DEMARRAGE APPLICATION SURVEILLANCE")
-        print("=" * 60)
     main()
