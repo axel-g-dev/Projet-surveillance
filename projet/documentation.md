@@ -1,4 +1,4 @@
-# **Dossier de mini-projet – Conforme aux consignes**
+# **Dossier de mini-projet**
 
 ---
 
