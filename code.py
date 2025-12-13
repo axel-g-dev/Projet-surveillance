@@ -66,7 +66,7 @@ header {visibility: hidden;}
 """, unsafe_allow_html=True)
 
 # ===============================================================
-# DATABASE MANAGER SIMPLIFIÉ & FIABLE
+# DATABASE MANAGER 
 # ===============================================================
 class DatabaseManager:
     def __init__(self):
@@ -106,7 +106,7 @@ class DatabaseManager:
             if DEBUG: print("[DB] Connexion fermée.")
 
 # ===============================================================
-# SURVEILLANCE MANAGER OPTIMISÉ
+# SURVEILLANCE MANAGER 
 # ===============================================================
 class SurveillanceManager:
     def __init__(self):
@@ -197,7 +197,7 @@ class SurveillanceManager:
             self.total_detections += 1
             self.save_picture(self.frame_a)
 
-        # Draw contours
+        # Dessin des contours
         display = self.frame_a.copy()
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
